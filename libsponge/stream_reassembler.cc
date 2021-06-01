@@ -36,6 +36,19 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     Range cur(index, index + data.size() - 1, data);
     insert_range(cur);
 }
+void StreamReassembler::insert_range(Range &cur) {
+    auto threshold = next_byte + _capacity - _output.buffer_size() - 1;
+    u32 s = static_cast<u32>(cur.start);
+    if (s > threshold)
+        return;
+    else if (static_cast<u32>(cur.end) > threshold) {
+        cur.end = threshold;
+        cur.data = cur.data.substr(0, cur.end - cur.start + 1);
+    }
+    ranges.push_back(cur);
+    merge_range();
+}
+
 bool cmp(Range &a, Range &b) { return a.start < b.start; }
 
 void StreamReassembler::merge_range() {
@@ -49,34 +62,26 @@ void StreamReassembler::merge_range() {
             tail++;
         } else if (ranges[i].end <= res[tail].end)
             continue;
-        else if (ranges[i].start <= res[tail].end && ranges[i].end > res[tail].end) {
+        else if (ranges[i].start <= res[tail].end + 1 && ranges[i].end > res[tail].end) {
             auto gap = res[tail].end - ranges[i].start;
             res[tail].end = ranges[i].end;
             res[tail].data += ranges[i].data.substr(gap + 1, ranges[i].data.size());
-            // cout << "new data:" << res[tail].data << "--------\n";
-            // cout << "range: " << ranges[i].data << "\n";
-            // cout << gap << "   :  " << res[tail].start << res[tail].end << "\n";
-        } else if (ranges[i].start == res[tail].end + 1) {
-            // cout << "~~~~~~~~hello"
-            //  << "\n";
-            res[tail].end = ranges[i].end;
-            res[tail].data += ranges[i].data;
+        } else {
+            cout << "can't get here~"
+                 << "\n";
+            exit(EXIT_FAILURE);
         }
     }
     if (res[0].start == next_byte) {
         _output.write(res[0].data);
-        cout << "write :" << res[0].data.size() << "\n ~~~~~~~~~~~";
         next_byte = res[0].end + 1;
         if (next_byte == stream_end)
             _output.end_input();
         res.erase(res.begin());
     } else if (res[0].start < next_byte && res[0].end >= next_byte) {
         res[0].data = res[0].data.substr(next_byte - res[0].start, res[0].data.size());
+        next_byte = res[0].end + 1;
         _output.write(res[0].data);
-        cout << "write :" << res[0].data.size() << "\n ~~~~~~~~~~~";
-        next_byte = res[0].end + 1;
-        // _output.write("p");
-        next_byte = res[0].end + 1;
         if (next_byte == stream_end)
             _output.end_input();
         res.erase(res.begin());
@@ -89,18 +94,5 @@ void StreamReassembler::merge_range() {
 }
 
 size_t StreamReassembler::unassembled_bytes() const { return consumed; }
-void StreamReassembler::insert_range(Range &cur) {
-    auto threshold = next_byte + _capacity - _output.buffer_size() - 1;
-    u32 s = static_cast<u32>(cur.start);
-    if (s > threshold)
-        return;
-    else if (static_cast<u32>(cur.end) > threshold) {
-        cur.end = threshold;
-        cur.data = cur.data.substr(0, cur.end - cur.start + 1);
-        // std::cout << cur.data << "~~~~~~\n" << cur.start << cur.end << "\n";
-    }
-    ranges.push_back(cur);
-    merge_range();
-}
 
 bool StreamReassembler::empty() const { return consumed == 0; }

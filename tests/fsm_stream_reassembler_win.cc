@@ -51,7 +51,9 @@ int main() {
             auto result = read(buf);
             if (buf.stream_out().bytes_written() != offset) {  // read bytes
                 cout << "offset" << offset << " written" << buf.stream_out().bytes_written() << "\n";
-                cout << buf.unassembled_bytes() << "unass \n";
+                cout << buf.unassembled_bytes() << "  unass \n";
+                // cout << buf.ranges.size() << "buf size\n " << buf.ranges[0].start << "start " << buf.next_byte
+                //      << " next byte\n";
                 throw runtime_error("test 2 - number of RX bytes is incorrect");
             }
             if (!equal(result.cbegin(), result.cend(), d.cbegin())) {
