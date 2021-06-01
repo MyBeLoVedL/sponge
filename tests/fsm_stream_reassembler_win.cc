@@ -14,7 +14,7 @@
 
 using namespace std;
 
-static constexpr unsigned NREPS = 32;
+static constexpr unsigned NREPS = 1;
 static constexpr unsigned NSEGS = 128;
 static constexpr unsigned MAX_SEG_LEN = 2048;
 
@@ -50,9 +50,13 @@ int main() {
 
             auto result = read(buf);
             if (buf.stream_out().bytes_written() != offset) {  // read bytes
+                cout << "offset" << offset << " written" << buf.stream_out().bytes_written() << "\n";
+                cout << buf.unassembled_bytes() << "unass \n";
                 throw runtime_error("test 2 - number of RX bytes is incorrect");
             }
             if (!equal(result.cbegin(), result.cend(), d.cbegin())) {
+                cout << "~~~~~~~~~equal"
+                     << "\n";
                 throw runtime_error("test 2 - content of RX bytes is incorrect");
             }
         }
