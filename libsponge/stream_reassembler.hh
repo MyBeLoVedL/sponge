@@ -4,10 +4,13 @@
 #include "byte_stream.hh"
 #include "common.hh"
 
+#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
+
+#define i32 std::int32_t
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.

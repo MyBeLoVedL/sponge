@@ -38,10 +38,10 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
 }
 void StreamReassembler::insert_range(Range &cur) {
     auto threshold = next_byte + _capacity - _output.buffer_size() - 1;
-    u32 s = static_cast<u32>(cur.start);
+    std::uint32_t s = static_cast<std::uint32_t>(cur.start);
     if (s > threshold)
         return;
-    else if (static_cast<u32>(cur.end) > threshold) {
+    else if (static_cast<std::uint32_t>(cur.end) > threshold) {
         cur.end = threshold;
         cur.data = cur.data.substr(0, cur.end - cur.start + 1);
     }
@@ -53,7 +53,7 @@ bool cmp(Range &a, Range &b) { return a.start < b.start; }
 
 void StreamReassembler::merge_range() {
     vector<Range> res{};
-    u32 tail = 0;
+    std::uint32_t tail = 0;
     std::sort(ranges.begin(), ranges.end(), cmp);
     res.push_back(ranges[0]);
     for (size_t i = 1; i < ranges.size(); i++) {

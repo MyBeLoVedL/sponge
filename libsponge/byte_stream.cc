@@ -20,7 +20,7 @@ void DUMMY_CODE(Targs &&.../* unused */) {}
 using namespace std;
 
 ByteStream::ByteStream(const size_t capacity)
-    : buf(std::deque<u8>{})
+    : buf(std::deque<std::uint8_t>{})
     , count(0)
     , cap(capacity)
     , bytes_written_count(0)
