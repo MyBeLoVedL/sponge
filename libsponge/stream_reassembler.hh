@@ -5,6 +5,7 @@
 #include "common.hh"
 
 #include <bits/stdint-intn.h>
+#include <bits/stdint-uintn.h>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -17,8 +18,8 @@
 
 class Range {
   public:
-    i32 start;
-    i32 end;
+    uint64_t start;
+    uint64_t end;
     std::string data;
 
     Range(i32 s, i32 e, std::string const &d) : start(s), end(e), data(d){};
@@ -31,11 +32,11 @@ class StreamReassembler {
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
     size_t consumed = 0;
-    i32 stream_end = -1;
-    i32 next_byte = 0;
+    int64_t stream_end = -1;
     std::vector<Range> ranges;
 
   public:
+    uint64_t next_byte = 0;
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,
     //! and those that have not yet been reassembled.

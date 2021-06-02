@@ -6,6 +6,7 @@
 #include "tcp_segment.hh"
 #include "wrapping_integers.hh"
 
+#include <bits/stdint-uintn.h>
 #include <optional>
 
 //! \brief The "receiver" part of a TCP implementation.
@@ -13,19 +14,27 @@
 //! Receives and reassembles segments into a ByteStream, and computes
 //! the acknowledgment number and window size to advertise back to the
 //! remote TCPSender.
+
+enum RECV_STATE { WAITING, IN_PROGRESS, TERMINATED };
+
 class TCPReceiver {
     //! Our data structure for re-assembling bytes.
     StreamReassembler _reassembler;
 
     //! The maximum number of bytes we'll store.
     size_t _capacity;
+    WrappingInt32 _next_seq;
+    WrappingInt32 _isn;
+    RECV_STATE _state;
+    uint64_t _next_idx;
 
   public:
     //! \brief Construct a TCP receiver
     //!
     //! \param capacity the maximum number of bytes that the receiver will
     //!                 store in its buffers at any give time.
-    TCPReceiver(const size_t capacity) : _reassembler(capacity), _capacity(capacity) {}
+    TCPReceiver(const size_t capacity)
+        : _reassembler(capacity), _capacity(capacity), _next_seq(0), _isn(0), _state(WAITING), _next_idx(0) {}
 
     //! \name Accessors to provide feedback to the remote TCPSender
     //!@{

@@ -29,7 +29,7 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     if (eof)
         stream_end = index + data.size();
     if (data.size() == 0) {
-        if (next_byte == stream_end)
+        if (next_byte == static_cast<uint64_t>(stream_end))
             _output.end_input();
         return;
     }
@@ -75,14 +75,14 @@ void StreamReassembler::merge_range() {
     if (res[0].start == next_byte) {
         _output.write(res[0].data);
         next_byte = res[0].end + 1;
-        if (next_byte == stream_end)
+        if (next_byte == static_cast<uint64_t>(stream_end))
             _output.end_input();
         res.erase(res.begin());
     } else if (res[0].start < next_byte && res[0].end >= next_byte) {
         res[0].data = res[0].data.substr(next_byte - res[0].start, res[0].data.size());
         next_byte = res[0].end + 1;
         _output.write(res[0].data);
-        if (next_byte == stream_end)
+        if (next_byte == static_cast<uint64_t>(stream_end))
             _output.end_input();
         res.erase(res.begin());
     }
