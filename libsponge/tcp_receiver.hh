@@ -25,6 +25,7 @@ class TCPReceiver {
     size_t _capacity;
     WrappingInt32 _next_seq;
     WrappingInt32 _isn;
+    WrappingInt32 _seq_end;
     RECV_STATE _state;
     uint64_t _next_idx;
 
@@ -34,7 +35,13 @@ class TCPReceiver {
     //! \param capacity the maximum number of bytes that the receiver will
     //!                 store in its buffers at any give time.
     TCPReceiver(const size_t capacity)
-        : _reassembler(capacity), _capacity(capacity), _next_seq(0), _isn(0), _state(WAITING), _next_idx(0) {}
+        : _reassembler(capacity)
+        , _capacity(capacity)
+        , _next_seq(0)
+        , _isn(0)
+        , _seq_end(0)
+        , _state(WAITING)
+        , _next_idx(1) {}
 
     //! \name Accessors to provide feedback to the remote TCPSender
     //!@{

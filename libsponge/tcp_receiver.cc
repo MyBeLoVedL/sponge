@@ -18,19 +18,29 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
     if (seg.header().syn) {
         _state = IN_PROGRESS;
         _next_seq = seg.header().seqno + 1;
-        _next_idx = _next_seq.raw_value();
         _isn = WrappingInt32(seg.header().seqno);
     }
 
     if (_state == IN_PROGRESS) {
-        auto seq = seg.header().seqno;
+        WrappingInt32 seqno(0);
+        if (seg.header().seqno == _isn) {
+            seqno = seg.header().seqno + 1;
+            // cout << "seqno : _isn : _next_idx   : index : " << seqno << " " << _isn << ": " << _next_idx << ": "
+            //      << unwrap(seqno, _isn, _next_idx - _isn.raw_value()) << "\n";
+        } else {
+            seqno = seg.header().seqno;
+        }
         bool fin = seg.header().fin;
-        _reassembler.push_substring(string(seg.payload().str()), unwrap(seq, _isn, _next_idx) - 1, fin);
+        _reassembler.push_substring(string(seg.payload().str()), unwrap(seqno, _isn, _next_idx) - 1, fin);
         _next_idx = _reassembler.next_byte + 1;
         _next_seq = wrap(_next_idx, _isn);
+        if (_next_seq == _seq_end) {
+            _next_seq = _next_seq + 1;
+        }
     }
     if (seg.header().fin) {
-        if (_state == IN_PROGRESS) {
+        _seq_end = seg.header().seqno + seg.payload().size();
+        if (_state == IN_PROGRESS && seg.header().seqno.raw_value() <= _next_seq.raw_value()) {
             _state = TERMINATED;
             _next_seq = _next_seq + 1;
         }

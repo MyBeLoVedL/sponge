@@ -3,6 +3,7 @@
 #include "common.hh"
 
 #include <algorithm>
+#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <iostream>
 #include <vector>
@@ -26,15 +27,23 @@ StreamReassembler::StreamReassembler(const size_t capacity)
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
+    if (static_cast<int64_t>(index) < 0)
+        cout << "~~~syn with data here"
+             << "\n";
+    size_t idx = static_cast<int64_t>(index) < 0 ? 0 : index;
     if (eof)
-        stream_end = index + data.size();
+        stream_end = idx + data.size();
     if (data.size() == 0) {
         if (next_byte == static_cast<uint64_t>(stream_end))
             _output.end_input();
         return;
     }
-    Range cur(index, index + data.size() - 1, data);
+    Range cur(idx, idx + data.size() - 1, data);
+    // cout << idx << " : " << idx + data.size() << "\n";
+    cout << "next byte: " << next_byte << " end :" << stream_end << " idx: " << idx << " size :" << data.size() << "\n";
     insert_range(cur);
+    if (next_byte == static_cast<uint64_t>(stream_end))
+        _output.end_input();
 }
 void StreamReassembler::insert_range(Range &cur) {
     auto threshold = next_byte + _capacity - _output.buffer_size() - 1;
@@ -72,6 +81,8 @@ void StreamReassembler::merge_range() {
             exit(EXIT_FAILURE);
         }
     }
+    if (res[0].end < next_byte)
+        res.erase(res.begin());
     if (res[0].start == next_byte) {
         _output.write(res[0].data);
         next_byte = res[0].end + 1;

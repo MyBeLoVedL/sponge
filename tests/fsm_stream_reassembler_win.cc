@@ -14,7 +14,7 @@
 
 using namespace std;
 
-static constexpr unsigned NREPS = 1;
+static constexpr unsigned NREPS = 4;
 static constexpr unsigned NSEGS = 128;
 static constexpr unsigned MAX_SEG_LEN = 2048;
 
@@ -52,6 +52,9 @@ int main() {
             if (buf.stream_out().bytes_written() != offset) {  // read bytes
                 cout << "offset" << offset << " written" << buf.stream_out().bytes_written() << "\n";
                 cout << buf.unassembled_bytes() << "  unass \n";
+                cout << "size : " << buf.ranges.size() << "\n";
+                for (auto i : buf.ranges)
+                    cout << "start : " << i.start << " end : " << i.end << "\n";
                 // cout << buf.ranges.size() << "buf size\n " << buf.ranges[0].start << "start " << buf.next_byte
                 //      << " next byte\n";
                 throw runtime_error("test 2 - number of RX bytes is incorrect");

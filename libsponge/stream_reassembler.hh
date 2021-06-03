@@ -33,9 +33,9 @@ class StreamReassembler {
     size_t _capacity;    //!< The maximum number of bytes
     size_t consumed = 0;
     int64_t stream_end = -1;
-    std::vector<Range> ranges;
 
   public:
+    std::vector<Range> ranges;
     uint64_t next_byte = 0;
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,
