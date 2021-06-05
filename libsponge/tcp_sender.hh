@@ -54,6 +54,8 @@ class TCPSender {
 
     uint64_t bytes_unACKed{0};
 
+    bool buffer_full{false};
+
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,

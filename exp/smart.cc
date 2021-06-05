@@ -1,5 +1,6 @@
 #include "common.hh"
 
+#include <deque>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -22,9 +23,15 @@ void alloc_name() {
 }
 
 int main() {
-    alloc_name();
-    i32 age = 10;
-    string a("Vega");
-    cout << a << age << "\n";
+    std::deque<int> Q;
+    Q.push_back(1);
+    Q.push_back(2);
+    Q.push_back(3);
+    for (auto i : Q) {
+        cout << i << "\n";
+        Q.pop_front();
+    }
+    cout << Q.size() << "\n";
+
     return 0;
 }

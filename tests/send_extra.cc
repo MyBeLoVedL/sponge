@@ -222,6 +222,8 @@ int main() {
             test.execute(ExpectSegment{}.with_payload_size(0).with_seqno(isn + 4).with_fin(true));
             test.execute(Tick{2 * rto - 5});
             test.execute(ExpectNoSegment{});
+            cout << "``````````"
+                 << "\n";
             test.execute(Tick{10});
             test.execute(ExpectSegment{}.with_payload_size(0).with_seqno(isn + 4).with_fin(true));
         }

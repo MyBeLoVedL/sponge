@@ -31,6 +31,8 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
 uint64_t TCPSender::bytes_in_flight() const { return bytes_unACKed; }
 
 void TCPSender::fill_window() {
+    // if (_window_size == 0)
+    //     _window_size = 1;
     while (_window_size > 0) {
         auto avail = min(_window_size, min(TCPConfig::MAX_PAYLOAD_SIZE, _stream.buffer_size()));
         if (avail == 0 && _next_seqno != 0 && (!_stream.eof() || fin_sent))
@@ -38,23 +40,20 @@ void TCPSender::fill_window() {
         TCPSegment seg{};
         seg.header().syn = _next_seqno == 0 ? true : false;
         // ? bug here
+
         fin_sent = seg.header().fin = _stream.eof() ? true : false;
 
-        if (avail >= _window_size) {
-            if (seg.header().syn) {
-                avail--;
-            }
-            if (seg.header().fin) {
-                avail--;
-            }
-        }
         seg.payload() = _stream.read(avail);
         // * incase that the FIN could be piggybacked on the data segment
-        fin_sent = seg.header().fin = _stream.eof() ? true : false;
+        if (_stream.eof() && avail < _window_size) {
+            fin_sent = seg.header().fin = true;
+        } else {
+            fin_sent = seg.header().fin = false;
+        }
         seg.header().seqno = wrap(_next_seqno, _isn);
         _next_seqno += seg.length_in_sequence_space();
-        cout << "send segment : " << seg.header().seqno << " \' " << seg.payload().str() << "\' "
-             << "\n";
+        cout << "send segment : " << seg.header().seqno << " window size : " << _window_size
+             << " seg size :" << seg.payload().size() << " \n";
         _segments_out.push(seg);
         _out_segments.push_back(seg);
         bytes_unACKed += seg.length_in_sequence_space();
@@ -70,27 +69,29 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
-    _window_size = window_size;
-    // if (unwrap(ackno, _isn, _next_seqno) <= _out_segments.at(0).length_in_sequence_space() +
-    //                                             unwrap(_out_segments.at(0).header().seqno, _isn, _next_seqno)) {
-    //     return;
-    // }
-    bool new_data = false;
+    if ((unwrap(ackno, _isn, _next_seqno) < unwrap(_out_segments.front().header().seqno, _isn, _next_seqno) +
+                                                _out_segments.front().length_in_sequence_space()))
+        return;
+
     consec_retrx = 0;
     for (auto seg : _out_segments) {
-        if (unwrap(ackno, _isn, _next_seqno) > unwrap(seg.header().seqno, _isn, _next_seqno)) {
+        if (unwrap(ackno, _isn, _next_seqno) >=
+            unwrap(seg.header().seqno, _isn, _next_seqno) + seg.length_in_sequence_space()) {
             bytes_unACKed -= seg.length_in_sequence_space();
+            cout << "pop seg : " << _out_segments.front().header().seqno << "\n";
             _out_segments.pop_front();
-            new_data = true;
         } else
             break;
     }
     // * ACKing old data,ignore it
-    if (new_data) {
-        timer.started = true;
-        RTO = _initial_retransmission_timeout;
-        timer.count = 0;
-    }
+    if (window_size == 0)
+        buffer_full = true;
+    else
+        buffer_full = false;
+    _window_size = window_size == 0 ? 1 : window_size;
+    timer.started = true;
+    RTO = _initial_retransmission_timeout;
+    timer.count = 0;
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
@@ -102,9 +103,12 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
     timer.count += ms_since_last_tick;
     if (timer.count >= RTO) {
         timer.count = 0;
-        _segments_out.push(_out_segments.at(0));
-        RTO <<= 1;
-        consec_retrx += 1;
+        if (!_out_segments.empty())
+            _segments_out.push(_out_segments.at(0));
+        if (!buffer_full) {
+            RTO <<= 1;
+            consec_retrx += 1;
+        }
     }
 }
 
