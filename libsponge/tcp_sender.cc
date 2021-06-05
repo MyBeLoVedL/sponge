@@ -52,8 +52,8 @@ void TCPSender::fill_window() {
         }
         seg.header().seqno = wrap(_next_seqno, _isn);
         _next_seqno += seg.length_in_sequence_space();
-        cout << "send segment : " << seg.header().seqno << " window size : " << _window_size
-             << " seg size :" << seg.payload().size() << " \n";
+        // cout << "send segment : " << seg.header().seqno << " window size : " << _window_size
+        //      << " seg size :" << seg.payload().size() << " \n";
         _segments_out.push(seg);
         _out_segments.push_back(seg);
         bytes_unACKed += seg.length_in_sequence_space();
@@ -69,16 +69,23 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
-    if ((unwrap(ackno, _isn, _next_seqno) < unwrap(_out_segments.front().header().seqno, _isn, _next_seqno) +
-                                                _out_segments.front().length_in_sequence_space()))
+    auto first_seg = _out_segments.front();
+    uint32_t inc_win_size = 0;
+    if (((unwrap(ackno, _isn, _next_seqno) <
+          unwrap(first_seg.header().seqno, _isn, _next_seqno) + first_seg.length_in_sequence_space())) &&
+        !(ackno == first_seg.header().seqno && (inc_win_size = window_size - bytes_unACKed) > _window_size))
         return;
+    if (ackno == first_seg.header().seqno) {
+        _window_size = inc_win_size;
+        return;
+    }
 
     consec_retrx = 0;
     for (auto seg : _out_segments) {
         if (unwrap(ackno, _isn, _next_seqno) >=
             unwrap(seg.header().seqno, _isn, _next_seqno) + seg.length_in_sequence_space()) {
             bytes_unACKed -= seg.length_in_sequence_space();
-            cout << "pop seg : " << _out_segments.front().header().seqno << "\n";
+            // cout << "pop seg : " << _out_segments.front().header().seqno << "\n";
             _out_segments.pop_front();
         } else
             break;
