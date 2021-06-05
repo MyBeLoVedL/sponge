@@ -53,6 +53,8 @@ void TCPSender::fill_window() {
         fin_sent = seg.header().fin = _stream.eof() ? true : false;
         seg.header().seqno = wrap(_next_seqno, _isn);
         _next_seqno += seg.length_in_sequence_space();
+        cout << "send segment : " << seg.header().seqno << " \' " << seg.payload().str() << "\' "
+             << "\n";
         _segments_out.push(seg);
         _out_segments.push_back(seg);
         bytes_unACKed += seg.length_in_sequence_space();
@@ -69,16 +71,25 @@ void TCPSender::fill_window() {
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
     _window_size = window_size;
+    // if (unwrap(ackno, _isn, _next_seqno) <= _out_segments.at(0).length_in_sequence_space() +
+    //                                             unwrap(_out_segments.at(0).header().seqno, _isn, _next_seqno)) {
+    //     return;
+    // }
+    bool new_data = false;
     consec_retrx = 0;
-    timer.started = true;
-    RTO = _initial_retransmission_timeout;
-    timer.count = 0;
     for (auto seg : _out_segments) {
         if (unwrap(ackno, _isn, _next_seqno) > unwrap(seg.header().seqno, _isn, _next_seqno)) {
             bytes_unACKed -= seg.length_in_sequence_space();
             _out_segments.pop_front();
+            new_data = true;
         } else
             break;
+    }
+    // * ACKing old data,ignore it
+    if (new_data) {
+        timer.started = true;
+        RTO = _initial_retransmission_timeout;
+        timer.count = 0;
     }
 }
 
