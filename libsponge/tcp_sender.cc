@@ -2,6 +2,7 @@
 
 #include "tcp_config.hh"
 #include "tcp_segment.hh"
+#include "tcp_state.hh"
 #include "wrapping_integers.hh"
 
 #include <algorithm>
@@ -32,12 +33,13 @@ uint64_t TCPSender::bytes_in_flight() const { return bytes_unACKed; }
 void TCPSender::fill_window() {
     while (_window_size > 0) {
         auto avail = min(_window_size, min(TCPConfig::MAX_PAYLOAD_SIZE, _stream.buffer_size()));
-        if (avail == 0 && _next_seqno != 0)
+        if (avail == 0 && _next_seqno != 0 && (!_stream.eof() || fin_sent))
             break;
         TCPSegment seg{};
         seg.header().syn = _next_seqno == 0 ? true : false;
         // ? bug here
-        seg.header().fin = _stream.eof() ? true : false;
+        fin_sent = seg.header().fin = _stream.eof() ? true : false;
+
         if (avail >= _window_size) {
             if (seg.header().syn) {
                 avail--;
@@ -47,6 +49,8 @@ void TCPSender::fill_window() {
             }
         }
         seg.payload() = _stream.read(avail);
+        // * incase that the FIN could be piggybacked on the data segment
+        fin_sent = seg.header().fin = _stream.eof() ? true : false;
         seg.header().seqno = wrap(_next_seqno, _isn);
         _next_seqno += seg.length_in_sequence_space();
         _segments_out.push(seg);
@@ -54,7 +58,7 @@ void TCPSender::fill_window() {
         bytes_unACKed += seg.length_in_sequence_space();
         if (!timer.started) {
             timer.started = true;
-            timer.count = RTO;
+            timer.count = 0;
         }
         _window_size -= seg.length_in_sequence_space();
         // cout << "window size:  " << _window_size << " length  " << seg.length_in_sequence_space() << "\n";
@@ -68,7 +72,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     consec_retrx = 0;
     timer.started = true;
     RTO = _initial_retransmission_timeout;
-    timer.count = RTO;
+    timer.count = 0;
     for (auto seg : _out_segments) {
         if (unwrap(ackno, _isn, _next_seqno) > unwrap(seg.header().seqno, _isn, _next_seqno)) {
             bytes_unACKed -= seg.length_in_sequence_space();
@@ -84,14 +88,15 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
         cout << "error timer\n";
         exit(1);
     }
-    timer.count -= ms_since_last_tick;
-    if (timer.count <= 0) {
-        timer.count = RTO;
+    timer.count += ms_since_last_tick;
+    if (timer.count >= RTO) {
+        timer.count = 0;
         _segments_out.push(_out_segments.at(0));
+        RTO <<= 1;
         consec_retrx += 1;
     }
 }
 
-unsigned int TCPSender::consecutive_retransmissions() const { return {}; }
+unsigned int TCPSender::consecutive_retransmissions() const { return consec_retrx; }
 
 void TCPSender::send_empty_segment() {}

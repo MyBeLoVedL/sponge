@@ -41,6 +41,8 @@ class TCPSender {
 
     Timer timer{};
 
+    bool fin_sent = false;
+
     uint64_t RTO;
 
     //! the (absolute) sequence number for the next byte to be sent
