@@ -23,12 +23,16 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
 
     if (_state == IN_PROGRESS) {
         WrappingInt32 seqno(0);
-        if (seg.header().seqno == _isn) {
+        if (seg.header().seqno == _isn && seg.header().syn) {
+            cout << "syn received : " << seg.header().seqno << " data: " << string(seg.payload()) << "\n";
             seqno = seg.header().seqno + 1;
             // cout << "seqno : _isn : _next_idx   : index : " << seqno << " " << _isn << ": " << _next_idx << ": "
             //      << unwrap(seqno, _isn, _next_idx - _isn.raw_value()) << "\n";
         } else {
             seqno = seg.header().seqno;
+            // * drop fake "syn" packet with data
+            if (seqno == _isn)
+                return;
         }
         bool fin = seg.header().fin;
         _reassembler.push_substring(string(seg.payload().str()), unwrap(seqno, _isn, _next_idx) - 1, fin);

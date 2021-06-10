@@ -27,9 +27,9 @@ StreamReassembler::StreamReassembler(const size_t capacity)
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
-    if (static_cast<int64_t>(index) < 0)
-        cout << "~~~syn with data here"
-             << "\n";
+    // if (static_cast<int64_t>(index) < 0)
+    //     cout << "~~~syn with data here"
+    //          << "\n";
     size_t idx = static_cast<int64_t>(index) < 0 ? 0 : index;
     if (eof)
         stream_end = idx + data.size();
@@ -40,7 +40,8 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     }
     Range cur(idx, idx + data.size() - 1, data);
     // cout << idx << " : " << idx + data.size() << "\n";
-    cout << "next byte: " << next_byte << " end :" << stream_end << " idx: " << idx << " size :" << data.size() << "\n";
+    // cout << "next byte: " << next_byte << " end :" << stream_end << " idx: " << idx << " size :" << data.size() <<
+    // "\n";
     insert_range(cur);
     if (next_byte == static_cast<uint64_t>(stream_end))
         _output.end_input();

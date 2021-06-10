@@ -32,8 +32,6 @@ class TCPSender {
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};
 
-    std::deque<TCPSegment> _out_segments{};
-
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
     //! outgoing stream of bytes that have not yet been sent
@@ -41,22 +39,21 @@ class TCPSender {
 
     Timer timer{};
 
-    bool fin_sent = false;
-
     uint64_t RTO;
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
-
-    uint64_t _window_size{1};
 
     uint32_t consec_retrx{0};
 
     uint64_t bytes_unACKed{0};
 
     bool buffer_full{false};
+    uint64_t _window_size{1};
 
   public:
+    std::deque<TCPSegment> _out_segments{};
+    WrappingInt32 _receiver_ackno{0};
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
               const uint16_t retx_timeout = TCPConfig::TIMEOUT_DFLT,
@@ -65,17 +62,19 @@ class TCPSender {
     //! \name "Input" interface for the writer
     //!@{
     ByteStream &stream_in() { return _stream; }
+    bool fin_sent = false;
     const ByteStream &stream_in() const { return _stream; }
     //!@}
-
     //! \name Methods that can cause the TCPSender to send a segment
     //!@{
 
     //! \brief A new acknowledgment was received
     void ack_received(const WrappingInt32 ackno, const uint16_t window_size);
 
+    uint64_t available_window_size() const { return _window_size; }
+
     //! \brief Generate an empty-payload segment (useful for creating empty ACK segments)
-    void send_empty_segment();
+    void send_empty_segment(WrappingInt32 ackno);
 
     //! \brief create and send segments to fill as much of the window as possible
     void fill_window();

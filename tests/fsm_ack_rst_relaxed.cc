@@ -107,6 +107,8 @@ int main() {
 
             // all RSTs should be ignored in LISTEN
             test_2.send_rst(base_seq);
+            cout << "~~~~~~~~~~~~~~~~~~~~~~"
+                 << "\n";
             test_2.send_rst(base_seq - 1);
             test_2.send_rst(base_seq + cfg.recv_capacity);
 

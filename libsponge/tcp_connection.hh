@@ -6,6 +6,8 @@
 #include "tcp_sender.hh"
 #include "tcp_state.hh"
 
+#include <bits/stdint-uintn.h>
+
 //! \brief A complete endpoint of a TCP connection
 class TCPConnection {
   private:
@@ -13,15 +15,19 @@ class TCPConnection {
     TCPReceiver _receiver{_cfg.recv_capacity};
     TCPSender _sender{_cfg.send_capacity, _cfg.rt_timeout, _cfg.fixed_isn};
 
+    bool _conn_state{false};
+
     //! outbound queue of segments that the TCPConnection wants sent
-    std::queue<TCPSegment> _segments_out{};
+    // std::queue<TCPSegment> &_segments_out = &_sender.segments_out();
 
     //! Should the TCPConnection stay active (and keep ACKing)
     //! for 10 * _cfg.rt_timeout milliseconds after both streams have ended,
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
-    bool _linger_after_streams_finish{true};
+
+    uint64_t _period_since_last_segment{0};
 
   public:
+    bool _linger_after_streams_finish{true};
     //! \name "Input" interface for the writer
     //!@{
 
@@ -72,7 +78,7 @@ class TCPConnection {
     //! \note The owner or operating system will dequeue these and
     //! put each one into the payload of a lower-layer datagram (usually Internet datagrams (IP),
     //! but could also be user datagrams (UDP) or any other kind).
-    std::queue<TCPSegment> &segments_out() { return _segments_out; }
+    std::queue<TCPSegment> &segments_out() { return _sender.segments_out(); }
 
     //! \brief Is the connection still alive in any way?
     //! \returns `true` if either stream is still running or if the TCPConnection is lingering

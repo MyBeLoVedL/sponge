@@ -31,8 +31,7 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
 uint64_t TCPSender::bytes_in_flight() const { return bytes_unACKed; }
 
 void TCPSender::fill_window() {
-    // if (_window_size == 0)
-    //     _window_size = 1;
+    cout << "enter fill window with " << _window_size << "\n";
     while (_window_size > 0) {
         auto avail = min(_window_size, min(TCPConfig::MAX_PAYLOAD_SIZE, _stream.buffer_size()));
         if (avail == 0 && _next_seqno != 0 && (!_stream.eof() || fin_sent))
@@ -52,8 +51,10 @@ void TCPSender::fill_window() {
         }
         seg.header().seqno = wrap(_next_seqno, _isn);
         _next_seqno += seg.length_in_sequence_space();
-        // cout << "send segment : " << seg.header().seqno << " window size : " << _window_size
-        //      << " seg size :" << seg.payload().size() << " \n";
+        if (seg.header().fin) {
+            seg.header().ack = true;
+            seg.header().ackno = _receiver_ackno;
+        }
         _segments_out.push(seg);
         _out_segments.push_back(seg);
         bytes_unACKed += seg.length_in_sequence_space();
@@ -71,6 +72,8 @@ void TCPSender::fill_window() {
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
     auto first_seg = _out_segments.front();
     uint32_t inc_win_size = 0;
+
+    // * drop useless packet
     if (((unwrap(ackno, _isn, _next_seqno) <
           unwrap(first_seg.header().seqno, _isn, _next_seqno) + first_seg.length_in_sequence_space())) &&
         !(ackno == first_seg.header().seqno && (inc_win_size = window_size - bytes_unACKed) > _window_size))
@@ -79,6 +82,12 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         _window_size = inc_win_size;
         return;
     }
+
+    auto last_sent_seq = unwrap(_out_segments[_out_segments.size() - 1].header().seqno, _isn, _next_seqno) +
+                         _out_segments[_out_segments.size() - 1].length_in_sequence_space();
+    // * drop impossible ack packet
+    if (unwrap(ackno, _isn, _next_seqno) > last_sent_seq)
+        return;
 
     consec_retrx = 0;
     for (auto seg : _out_segments) {
@@ -96,7 +105,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     else
         buffer_full = false;
     _window_size = window_size == 0 ? 1 : window_size;
-    timer.started = true;
+    timer.started = _out_segments.size() == 0 ? false : true;
     RTO = _initial_retransmission_timeout;
     timer.count = 0;
 }
@@ -104,10 +113,10 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     if (!timer.started) {
-        cout << "error timer\n";
-        exit(1);
+        return;
     }
     timer.count += ms_since_last_tick;
+    cout << "RTO : " << RTO << " cur :" << timer.count << "\n";
     if (timer.count >= RTO) {
         timer.count = 0;
         if (!_out_segments.empty())
@@ -121,4 +130,10 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
 
 unsigned int TCPSender::consecutive_retransmissions() const { return consec_retrx; }
 
-void TCPSender::send_empty_segment() {}
+void TCPSender::send_empty_segment(WrappingInt32 ackNum) {
+    TCPSegment seg{};
+    seg.header().ack = true;
+    seg.header().seqno = wrap(_next_seqno, _isn);
+    seg.header().ackno = ackNum;
+    _segments_out.push(seg);
+}
